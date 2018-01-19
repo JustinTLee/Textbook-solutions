@@ -33,6 +33,9 @@ for x in vectClass:
     
     # mean-deviation from data mean
     vectMeanDev = np.reshape(np.mean(matData[vectClassLogicals, :], axis = 0), (nFeatVar, 1)) - vectMean
+
+    # create variance between-class matrix (SB)
     matSB = matSB + np.dot(vectMeanDev, np.transpose(vectMeanDev))
 
+# solve generalized eigenvalue problem for the ratio of between-class to within-class (SB/SW)
 vectEigVal, matEigVect = la.eig(la.inv(matSW).dot(matSB))
