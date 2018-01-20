@@ -1,46 +1,85 @@
-# LDA module
-
 import numpy as np
 from scipy import linalg as la
-import csv
 
-datafile = np.loadtxt(open('/home/jlee/Documents/datasets/iris/iris_proc.data'), delimiter = ",")
-matData = datafile[:, 0:4]
-vectLabels = datafile[:, 4]
+# The way Marsland describes LDA theory is not how he implmenents his actual
+# code. Instead, the method implemented is from Pattern Recognition and Machine
+# Learning by Christopher Bishop (p. 191-192).
 
-vectClass = np.unique(vectLabels)
-nClasses = np.size(vectClass)
-nFeatVar = np.size(matData, axis = 1)
-nData = np.size(matData, axis = 0)
+# History:
+# 2018-01-19 - JL - wrote meandev method, extractSW, and extractSb methods
+# 2018-01-20 - JL - frustrated with how Marsland implemented the code differently
+#                   from book's outline, so switched to Bishop's implementation,
+#                   created LDA class
 
-matSW = np.zeros((nFeatVar, nFeatVar))
-matSB = np.zeros((nFeatVar, nFeatVar))
-C = np.cov(np.transpose(matData))
+def meandev(data):
+    # Create mean-deviation form of dataset
+    data = data - np.mean(data, axis = 0)
+    return data
 
-# create mean vector for entire dataset
-vectMean = np.reshape(np.mean(matData, axis = 0), (nFeatVar, 1))
 
-for x in vectClass:
-    # create probabilities based on frequencies for each class
-    pC = np.sum(vectLabels == x)/np.size(vectLabels)
+def calculateCovMat(data, vectLabels):
+    # Create the within-class and between-class covariance matrices
+
+    # create mean deviation form of data:
+    data = meandev(data)
     
-    # logically select all rows with class x
-    boolClass = np.squeeze(vectLabels == x)
+    # Initialize empty matrices
+    nFeatVar = np.shape(data)[1]
+    matSW = np.zeros((nFeatVar, nFeatVar))
+    matSB = np.zeros((nFeatVar, nFeatVar))
+
+    # create a vector of unique classes to cycle through
+    vectClass = np.unique(vectLabels)
+    nClasses = np.size(vectClass)
+
+    # create mean vector for entire dataset
+    vectMean = np.reshape(np.mean(data, axis = 0), (nFeatVar, 1))
+
+    for x in vectClass:
+        # logically select all rows with class x
+        boolClass = np.squeeze(vectLabels == x)
+
+        # create class mean vector
+        vectClassMean = np.reshape(np.mean(data[boolClass, :], axis = 0), (nFeatVar, 1))
         
-    # create the variance within-class matrix (SW)
-    matSWC = np.cov(np.transpose(matData[boolClass, :]))
-    matSW = matSW + pC*np.cov(np.transpose(matData[boolClass, :]))
-    
-    # mean-deviation from data mean
-    vectMeanDev = np.reshape(np.mean(matData[boolClass, :], axis = 0), (nFeatVar, 1)) - vectMean
+        # create the covariance within-class matrix (SW)
+        matSW += np.sum(boolClass)*np.cov(data[boolClass, :].T, bias = True)
+        matSB += np.sum(boolClass)*np.dot((vectClassMean - vectMean), (vectClassMean - vectMean).T)
 
-    # create variance between-class matrix (SB)
-    matSB = matSB + np.dot(vectMeanDev, np.transpose(vectMeanDev))
+    matST = np.shape(data)[0]*np.cov(data.T, bias = True)
 
-# solve generalized eigenvalue problem for the ratio of between-class to within-class (SB/SW)
-vectEigVal, matEigVect = la.eig(la.inv(matSW).dot(matSB))
+    return matSW, matSB
 
-boolEigInd = np.argsort(vectEigVal)
-boolEigInd = boolEigInd[::-1]
-matEigVect = matEigVect[:, boolEigInd]
-vectEigVal = vectEigVal[boolEigInd]
+class lda:
+
+    def __init__(self):
+        self.weights = []
+
+    def transformData(self, matFeat):
+        # transform data based on eigenvectors
+        matFeat = meandev(matFeat)
+        return np.dot(matFeat, self.weights)
+
+    def trainWeights(self, matFeat, vectLabels, reducedDim):
+        # calculate the covariance matrices
+        matSW, matSB = calculateCovMat(matFeat, vectLabels)
+
+        # get the eigenvectors
+        vectEigVal, matEigVect = la.eig(np.dot(la.inv(matSW), matSB))
+        
+        # sort eigenvectors by highest eigenvalue
+        boolEigInd = np.argsort(vectEigVal)
+        boolEigInd = boolEigInd[::-1]
+        matEigVect = matEigVect[:, boolEigInd]
+
+        # place eigenvalues and eigenvectors into object
+        self.eigvals = abs(np.real(vectEigVal[boolEigInd]))
+        self.weights = matEigVect[:, :reducedDim]
+
+        # print out contribution from each eigenvalue
+        for k in range(np.size(self.eigvals)):
+            eig_str = "Eigenvalue #" + str(k) + ": " + str(self.eigvals[k]) + " accounts for " + str(round(self.eigvals[k]/np.sum(self.eigvals)*100, 2)) + "% of data"
+            print(eig_str)
+
+        # return new data
+        return self.transformData(matFeat)
