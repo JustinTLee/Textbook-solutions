@@ -9,7 +9,7 @@ import datetime as dt
 
 class pcn:
 
-	def __init__(self, nNeurons, seed = None, iter = None, thresh_type = 1):
+	def __init__(self, nNeurons, seed = None, iter = None, thresh_type = 'linear'):
 		# Instatiate class with number of weights, seed, and eta
 		self.nNeurons = nNeurons
 
@@ -28,10 +28,10 @@ class pcn:
 			self.iter = iter
 
 		# initialize threshold
-		if thresh_type != 1:
+		if thresh_type != 'linear':
 			self.thresh_type = thresh_type
 		else:
-			self.thresh_type = 1
+			self.thresh_type = 'linear'
 		
 		# set seed for class
 		np.random.seed(self.seed)
@@ -43,8 +43,15 @@ class pcn:
 		# use various activation functions to threshold result
 
 		# simple binary threshold to see if hij is above or below 0
-		if self.thresh_type == 1:
+		if self.thresh_type == 'linear':
 			yi = np.where(hij > 0, 1, 0)
+
+		# logistic threshold with boundary at 0.5
+		elif self.thresh_type == 'logistic':
+			logit_ij = 1/(1 + np.exp(-hij))
+			yi = np.where(logit_ij > 0.5, 1, 0)
+
+		# if any-non empty string other than the possible options, return zero array
 		else:
 			yi = np.zeros((np.shape(hij)[0], 1))
 
