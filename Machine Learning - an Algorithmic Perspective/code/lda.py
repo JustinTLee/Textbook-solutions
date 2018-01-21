@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from scipy import linalg as la
 
 # The way Marsland describes LDA theory is not how he implmenents his actual
@@ -64,9 +65,9 @@ class lda:
         # calculate the covariance matrices
         matSW, matSB = calculateCovMat(matFeat, vectLabels)
 
-        # get the eigenvectors
+        # get the eigenvectors - eigenvectors already normalized
         vectEigVal, matEigVect = la.eig(np.dot(la.inv(matSW), matSB))
-        
+
         # sort eigenvectors by highest eigenvalue
         boolEigInd = np.argsort(vectEigVal)
         boolEigInd = boolEigInd[::-1]
