@@ -11,7 +11,7 @@ import unittest
 class TestPCNClass(unittest.TestCase):
 
 	def setUp(self):
-		self.test_pcn1 = pcn.pcn(1, 20180120, thresh_type = 1)
+		self.test_pcn1 = pcn.pcn(1, 20180120, thresh_type = 'logistic')
 		self.test_pcn2 = pcn.pcn(1, iter = 10)
 
 		self.data = np.matrix([[0, 0], [0, 1], [1, 0], [1, 1]])
@@ -39,10 +39,10 @@ class TestPCNClass(unittest.TestCase):
 		self.assertEqual(self.test_pcn2.iter, 10)
 
 	def test_thresh_type_init_1(self):
-		self.assertEqual(self.test_pcn1.thresh_type, 1)
+		self.assertEqual(self.test_pcn1.thresh_type, 'logistic')
 
 	def test_thresh_type_init_2(self):
-		self.assertEqual(self.test_pcn2.thresh_type, 1)
+		self.assertEqual(self.test_pcn2.thresh_type, 'linear')
 
 	def test_weights_dim(self):
 		self.assertEqual(np.shape(self.test_pcn1.weights)[0], 3)
