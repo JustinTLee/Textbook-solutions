@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from scipy import linalg as la
 
 # The way Marsland describes LDA theory is not how he implmenents his actual
@@ -56,23 +57,30 @@ class lda:
         self.weights = []
 
     def transformData(self, matFeat):
+        # transform data based on eigenvectors
         matFeat = meandev(matFeat)
         return np.dot(matFeat, self.weights)
 
     def trainWeights(self, matFeat, vectLabels, reducedDim):
+        # calculate the covariance matrices
         matSW, matSB = calculateCovMat(matFeat, vectLabels)
 
+        # get the eigenvectors
         vectEigVal, matEigVect = la.eig(np.dot(la.inv(matSW), matSB))
-        
+
         # sort eigenvectors by highest eigenvalue
         boolEigInd = np.argsort(vectEigVal)
         boolEigInd = boolEigInd[::-1]
         matEigVect = matEigVect[:, boolEigInd]
+
+        # place eigenvalues and eigenvectors into object
         self.eigvals = abs(np.real(vectEigVal[boolEigInd]))
         self.weights = matEigVect[:, :reducedDim]
 
+        # print out contribution from each eigenvalue
         for k in range(np.size(self.eigvals)):
             eig_str = "Eigenvalue #" + str(k) + ": " + str(self.eigvals[k]) + " accounts for " + str(round(self.eigvals[k]/np.sum(self.eigvals)*100, 2)) + "% of data"
             print(eig_str)
 
+        # return new data
         return self.transformData(matFeat)
