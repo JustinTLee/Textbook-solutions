@@ -3,7 +3,7 @@
 #                   covariance matrix methods and LDA class
 
 import numpy as np
-import lda2
+import lda
 import unittest
 
 class TestLDAMethods(unittest.TestCase):
@@ -20,7 +20,7 @@ class TestLDAMethods(unittest.TestCase):
         data1 = [[0.1,0.1],[0.2,0.2],[0.3,0.3],[0.35,0.3],[0.4,0.4],[0.6,0.4],[0.7,0.45],[0.75,0.4],[0.8,0.35]]
         data1 = np.matrix(data1)
         labels1 = [0,0,0,0,0,1,1,1,1]
-        self.a1SW, self.a1SB = lda2.calculateCovMat(data1, labels1)
+        self.a1SW, self.a1SB = lda.calculateCovMat(data1, labels1)
         self.a1SW = self.a1SW.tolist()
         self.a1SB = self.a1SB.tolist()
         self.b1SW = [[ 0.079875, 0.049], [0.049, 0.057]]
@@ -29,20 +29,20 @@ class TestLDAMethods(unittest.TestCase):
         data2 = [[1, 1], [2, 2], [9, 9], [10, 10]]
         data2 = np.matrix(data2)
         labels2 = [0, 0, 1, 1]
-        self.a2SW, self.a2SB = lda2.calculateCovMat(data2, labels2)
+        self.a2SW, self.a2SB = lda.calculateCovMat(data2, labels2)
         self.a2SW = self.a2SW.tolist()
         self.a2SB = self.a2SB.tolist()
         self.b2SW = [[1, 1], [1, 1]]
         self.b2SB = [[64, 64], [64, 64]]
 
-        test1 = lda2.lda()
+        test1 = lda.lda()
         self.newData1trained = test1.trainWeights(data1, labels1, 2)
         self.weightstrained = test1.weights;
         self.newData1actual = [[-0.20799281, -0.10126718], [-0.17082239, -0.0360899 ], [-0.13365197, 0.02908738], [-0.09024709, 0.01400504], [-0.09648156, 0.09426466], [0.07713797, 0.03393528], [ 0.13912806, 0.05144157], [0.20735262, -0.01131176], [0.27557717, -0.07406509]]
         self.weightsactual = [[0.86809764, -0.30164691], [-0.49639348, 0.95341971]]
 
     def test_meandev_method_1(self):
-        self.assertListEqual(lda2.meandev(self.a0).tolist(), self.b0)
+        self.assertListEqual(lda.meandev(self.a0).tolist(), self.b0)
 
     def test_extractSW_method_1(self):
         # Found as test code in Machine Learning, an Algorithmic Perspective,
