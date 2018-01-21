@@ -6,6 +6,7 @@ import datetime as dt
 #				  - created thresholding function (gating)
 #				  - created label prediction function
 #                 - created training function
+# 2018-01-21 - JL - made changes to label reshaping to account for multidimensional labels
 
 class pcn:
 
@@ -77,11 +78,15 @@ class pcn:
 		nFeatVar = np.shape(data)[1]
 
 		# transpose labels to fit feature matrix layout
-		if np.shape(labels)[0] == 1:
+		labels = np.matrix(labels)
+		if np.shape(labels)[0] < np.shape(labels)[1]:
 			labels = labels.T
-		elif isinstance(labels, np.ndarray):
-			# labels = np.reshape(labels, (np.size(labels), 1))
-			labels = np.reshape(labels, (nData, 1))
+
+		# Since each neuron represents a dimension of the output, if the target matrix has a higher
+		# dimension than the number of neurons initiated, then make the number of neurons equal to
+		# that dimension
+		if np.shape(labels)[1] > self.nNeurons:
+			self.nNeurons = np.shape(labels)[1]
 
 		# add bias node
 		bias = -1*np.ones((nData, 1)) # bias weight
