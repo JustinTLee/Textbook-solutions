@@ -9,6 +9,9 @@ import datetime as dt
 # 2018-01-21 - JL - made changes to label reshaping to account for multidimensional labels
 #                 - made neuron its own class and modified perceptron to loop through amount of neurons
 #                 - add ability to concatenate intercept feature variable in PCN class if not present
+# 2018-01-22 - JL - finish up trainWeights code for MLP - adjusted the calculation of layer errors per
+#                                                         neuron and vectorization of multiplying errors
+#                                                         with previous inputs
 
 class neuron:
 # neuron can: - perform dot product on weights and inputs
@@ -175,7 +178,7 @@ class mlp:
 #                             - run forward algorithm to calculate predicted labels
 #                             - calculate weights for each neuron in MLP
 
-    def __init__(self, matLayers, seed = None, iter = None, thresh_type = 'step'):
+    def __init__(self, matLayers, seed = None, iter = None, thresh_type = 'logistic'):
         self.nLayers = np.shape(matLayers)[0]
 
         # set seed to be the date class was instantiated if no seed provided
@@ -262,81 +265,49 @@ class mlp:
 
         # train weights
         for m in range(self.iter):
+
+            # move forward through the algorithm using the previous iteration's weights
             y = self.forwardPredict(data, internal_bool = True)
-            print(y)
 
+            # loop through every layer
             for n in range(self.nLayers, 0, -1):
-                
-                layer_str = "\nLayer: " + str(n)
-                print(layer_str)
-                neuron_str = "Number of neurons in layer #" + str(n) + ": " + str(self.matPCN[n - 1].nNeurons)
-                print(neuron_str)
 
-                if n == self.nLayers:
+                # loop through every neuron in each layer
+                for o in range(self.matPCN[n - 1].nNeurons):
 
-                    ErrorNO = np.zeros(np.shape(labels))
-
-                    for o in range(self.matPCN[n - 1].nNeurons):
-                        weights_str = "Weights of neuron #" + str(o + 1) + " in layer #" + str(n) + " :\n" + str(self.matPCN[n - 1].matNeurons[o].weights) + "\n"
-                        print(weights_str)
+                    # compare the output of the last layer with the labels in order to get the error
+                    if n == self.nLayers:
 
                         outputNO = np.matrix(y[n][:, o]).T
-                        ErrorNO[:, o] = np.squeeze((outputNO - labels[:, o])*outputNO.T*(1 - outputNO))
-                        previousLayerOutput = np.matrix(y[n - 1])
+                        self.matPCN[n - 1].matNeurons[o].error = ((outputNO - labels[:, o])*outputNO.T*(1 - outputNO)).T
 
-                        # add bias node
-                        if ~np.all(previousLayerOutput[:, 0] == -1):
-                            onesVect = -1*np.ones((np.shape(previousLayerOutput)[0], 1))
-                            previousLayerOutput = np.concatenate((onesVect, previousLayerOutput), axis = 1)
-
-                        self.matPCN[n - 1].matNeurons[o].weights -= float(self.matPCN[n - 1].eta)*(previousLayerOutput.T*np.matrix(ErrorNO[:, o]).T)
-
-                    print(ErrorNO)
-
-                else:
-
-                    for o in range(self.matPCN[n - 1].nNeurons):
-                        weights_str = "Weights of neuron #" + str(o + 1) + " in layer #" + str(n) + " :\n" + str(self.matPCN[n - 1].matNeurons[o].weights) + "\n"
-                        print(weights_str)
+                    # compare the output of the current layer with the weighted sum of the error of the next layer
+                    else:
 
                         layerNOOutput = np.matrix(y[n][:, o]).T
-                        print(layerNOOutput)
+                        
                         for p in range(self.matPCN[n].nNeurons):
-                            nextLayerErrorP = np.dot(ErrorNO, self.matPCN[n].matNeurons[p].weights.T)
+
+                            nextLayerErrorP = self.matPCN[n].matNeurons[p].error.T*float(self.matPCN[n].matNeurons[p].weights[o])
                             if p == 0:
                                 nextLayerError = nextLayerErrorP
                             else:
                                 nextLayerError = nextLayerError + nextLayerErrorP
 
-                        print(nextLayerError)
-                        layerErrorNO = layerNOOutput*(1 - layerNOOutput).T*nextLayerError
-                        print(layerErrorNO)
-                        print(self.matPCN[n - 1].matNeurons[0].weights)
-                        self.matPCN[n - 1].matNeurons[0].weights -= float(self.matPCN[n - 1].eta)*(layerNOOutput.T*layerErrorNO).T
+                        self.matPCN[n - 1].matNeurons[o].error = (layerNOOutput*(1 - layerNOOutput).T*nextLayerError).T
 
+                # get the output of the previous layer
+                previousLayerOutput = np.matrix(y[n - 1])
+
+                # add bias node
+                if ~np.all(previousLayerOutput[:, 0] == -1):
+                    onesVect = -1*np.ones((np.shape(previousLayerOutput)[0], 1))
+                    previousLayerOutput = np.concatenate((onesVect, previousLayerOutput), axis = 1)
+
+                # recalculate weights using the error of the current layer, output of the previous layer, and eta
+                self.matPCN[n - 1].matNeurons[o].weights -= float(self.matPCN[n - 1].eta)*(self.matPCN[n - 1].matNeurons[o].error*previousLayerOutput).T
+
+        # predict the final outcome
         y = self.forwardPredict(data)
 
         return y
-
-# test = pcn(2, iter = 100, thresh_type = "logistic")
-
-# data = np.matrix([[0, 0], [0, 1], [1, 0], [1, 1]])
-# data2 = np.matrix([[0, 0], [0, 0], [0, 0], [0, 0], [0, 1], [1, 1]])
-# target = np.matrix([[1, 1, 0, 0], [1, 0, 0, 1], [1, 0, 0, 1], [0, 0, 1, 1]])
-# output = test.trainWeights(data, target)
-# print(test.thresh_type)
-# print(output)
-# print(test.forwardPredict(data2))
-
-# test = mlp([1, 1, 1], iter = 1, thresh_type = 'logistic')
-
-# data = np.matrix([[1, 1], [1, 1], [1, 1], [1, 1]])
-# target = np.matrix([[0, 0], [0, 0], [0, 0], [0, 0]])
-# print(test.trainWeights(data, target))
-
-test = mlp([1, 1, 1], iter = 100, thresh_type = 'logistic')
-data = np.matrix([[0, 0], [0, 1], [1, 0], [1, 1]])
-target = np.matrix([[0], [0], [0], [1]])
-# target = np.matrix([[1, 1, 0, 0], [1, 0, 0, 1], [1, 0, 0, 1], [0, 0, 1, 1]])
-
-print(test.trainWeights(data, target))
