@@ -10,6 +10,7 @@ import unittest
 # 2018-01-21 - JL - split up class test cases between new neuron clsas and pcn class
 #                 - create new test cases for neuron class
 # 2018-01-22 - JL - added tests for new MLP class
+# 2018-01-24 - JL - add soft-max test
 
 class TestNeuronClass(unittest.TestCase):
 
@@ -40,6 +41,8 @@ class TestNeuronClass(unittest.TestCase):
     def test_thresh_type_init_2(self):
         test2 = pcn.neuron(2, thresh_type = "logistic")
         self.assertEqual(test2.thresh_type, 'logistic')
+        test2 = pcn.neuron(2, thresh_type = 'soft-max')
+        self.assertEqual(test2.thresh_type, 'soft-max')
 
     def test_weights_dim_init(self):
         self.assertEqual(np.shape(self.test.weights), (3, 1))
