@@ -1,5 +1,6 @@
 import numpy as np
 import datetime as dt
+import math
 
 # History:
 # 2018-01-20 - JL - started pcn class, created instantiation
@@ -12,6 +13,10 @@ import datetime as dt
 # 2018-01-22 - JL - finish up trainWeights code for MLP - adjusted the calculation of layer errors per
 #                                                         neuron and vectorization of multiplying errors
 #                                                         with previous inputs
+# 2018-01-24 - JL - weights in neurons now initialized between -1/sqrt(n) to 1/sqrt(n)
+#                 - shuffle the inputs at every single step during training
+#                 - add momentum to update
+#                 - get rid of extraneous if/then statements in __init__ methods
 
 class neuron:
 # neuron can: - perform dot product on weights and inputs
@@ -19,7 +24,7 @@ class neuron:
 #             - change thresholding scheme
 #             - initialize weights 
 
-    def __init__(self, nInputs, seed = None, thresh_type = 'step'):
+    def __init__(self, nInputs, seed = None, thresh_type = 'step', momentum = 0.9):
         self.nInputs = nInputs
 
         # set seed to be the date class was instantiated if no seed provided
@@ -30,17 +35,17 @@ class neuron:
         else:
             self.seed = seed
 
-        # initialize threshold
-        if thresh_type != 'step':
-            self.thresh_type = thresh_type
-        else:
-            self.thresh_type = 'step'
-
         # set seed for class
         np.random.seed(self.seed)
 
         # initialize weights
-        self.weights = np.random.uniform(-1, 1, (self.nInputs, 1))
+        self.weights = np.random.uniform(-math.sqrt(1/self.nInputs), math.sqrt(1/self.nInputs), (self.nInputs, 1))
+
+        # initialize momentum
+        self.momentum = momentum
+
+        # initialize threshold
+        self.thresh_type = thresh_type
 
     def thresholdH(self, hij):
         # use various activation functions to threshold result
@@ -52,6 +57,10 @@ class neuron:
         # logistic threshold with boundary at 0.5
         elif self.thresh_type == 'logistic':
             yi = 1/(1 + np.exp(-hij))
+
+        # soft-max threshold
+        elif self.thresh_type == 'soft-max':
+            yi = math.exp(hij)/np.sum(math.exp(hij))
 
         # if any-non empty string other than the possible options, return zero array
         else:
@@ -73,7 +82,7 @@ class pcn:
 #                 - update neuron weights
 #                 - run forward algorithm to calculate predicted labels
 
-    def __init__(self, nNeurons, seed = None, iter = None, thresh_type = 'step'):
+    def __init__(self, nNeurons, seed = None, iter = 20, thresh_type = 'step'):
         # Instatiate class with number of weights, seed, and eta
         self.nNeurons = nNeurons
 
@@ -85,20 +94,14 @@ class pcn:
         else:
             self.seed = seed
 
-        # initialize number of iterations
-        if iter is None:
-            self.iter = 20
-        else:
-            self.iter = iter
-
-        # initialize threshold
-        if thresh_type != 'step':
-            self.thresh_type = thresh_type
-        else:
-            self.thresh_type = 'step'
-        
         # set seed for class
         np.random.seed(self.seed)
+
+        # initialize number of iterations
+        self.iter = iter
+
+        # initialize threshold
+        self.thresh_type = thresh_type
 
         # generate eta as random number between 0.1 to 0.4, as stated in p. 46
         self.eta = np.random.uniform(0.1, 0.4, 1)
@@ -156,14 +159,18 @@ class pcn:
 
         # train weights
         for m in range(self.iter):
+            vectReorder = np.arange(nData)
+            np.random.shuffle(vectReorder)
+            dataReordered = data[vectReorder, :]
+            labelsReordered = labels[vectReorder, :]
 
             for n in range(self.nNeurons):
                 # loop through every neuron
                 # create label predictions
-                yi = self.matNeurons[n].predictLabels(data)
+                yi = self.matNeurons[n].predictLabels(dataReordered)
 
                 # update the weights
-                self.matNeurons[n].weights -= np.squeeze(self.eta)*data.T*(yi - labels[:, n])
+                self.matNeurons[n].weights -= np.squeeze(self.eta)*dataReordered.T*(yi - labelsReordered[:, n])
 
         y = self.forwardPredict(data)
 
@@ -189,20 +196,14 @@ class mlp:
         else:
             self.seed = seed
 
-        # initialize number of iterations
-        if iter is None:
-            self.iter = 20
-        else:
-            self.iter = iter
-
-        # initialize threshold
-        if thresh_type != 'step':
-            self.thresh_type = thresh_type
-        else:
-            self.thresh_type = 'step'
-
         # set seed for class
         np.random.seed(self.seed)
+
+        # initialize number of iterations
+        self.iter = iter
+
+        # initialize threshold
+        self.thresh_type = thresh_type
 
         self.matPCN = [pcn(matLayers[k], seed = self.seed + k, iter = self.iter, thresh_type = self.thresh_type) for k in range(self.nLayers)]
 
@@ -265,9 +266,13 @@ class mlp:
 
         # train weights
         for m in range(self.iter):
+            vectReorder = np.arange(nData)
+            np.random.shuffle(vectReorder)
+            dataReordered = data[vectReorder, :]
+            labelsReordered = labels[vectReorder, :]
 
             # move forward through the algorithm using the previous iteration's weights
-            y = self.forwardPredict(data, internal_bool = True)
+            y = self.forwardPredict(dataReordered, internal_bool = True)
 
             # loop through every layer
             for n in range(self.nLayers, 0, -1):
@@ -279,7 +284,7 @@ class mlp:
                     if n == self.nLayers:
 
                         outputNO = np.matrix(y[n][:, o]).T
-                        self.matPCN[n - 1].matNeurons[o].error = ((outputNO - labels[:, o])*outputNO.T*(1 - outputNO)).T
+                        self.matPCN[n - 1].matNeurons[o].error = ((outputNO - labelsReordered[:, o])*outputNO.T*(1 - outputNO)).T
 
                     # compare the output of the current layer with the weighted sum of the error of the next layer
                     else:
@@ -305,7 +310,12 @@ class mlp:
                     previousLayerOutput = np.concatenate((onesVect, previousLayerOutput), axis = 1)
 
                 # recalculate weights using the error of the current layer, output of the previous layer, and eta
-                self.matPCN[n - 1].matNeurons[o].weights -= float(self.matPCN[n - 1].eta)*(self.matPCN[n - 1].matNeurons[o].error*previousLayerOutput).T
+                if m == 0:
+                    self.matPCN[n - 1].matNeurons[o].updates = math.exp(-m/self.iter)*float(self.matPCN[n - 1].eta)*(self.matPCN[n - 1].matNeurons[o].error*previousLayerOutput).T
+                else:
+                    self.matPCN[n - 1].matNeurons[o].updates = math.exp(-m/self.iter)*float(self.matPCN[n - 1].eta)*(self.matPCN[n - 1].matNeurons[o].error*previousLayerOutput).T + self.matPCN[n - 1].matNeurons[o].momentum*self.matPCN[n - 1].matNeurons[o].updates
+                
+                self.matPCN[n - 1].matNeurons[o].weights -= self.matPCN[n - 1].matNeurons[o].updates
 
         # predict the final outcome
         y = self.forwardPredict(data)
