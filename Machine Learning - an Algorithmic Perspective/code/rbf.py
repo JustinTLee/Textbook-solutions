@@ -27,7 +27,6 @@ class rbfneuron(pcn.neuron):
     def predictLabels(self, data):
         distance = np.asarray(np.dot(data, self.weights.T)) ** 2
         yi = np.exp(-distance/(2*self.sigma ** 2))
-
         return yi
 
 class rbf:
@@ -75,7 +74,7 @@ class rbf:
             self.matRBFNeurons[m].weights = dataReordered[m, :]
 
         # Create PCN layer
-        self.PCNLayer = pcn.pcn(self.outputDim, seed = self.seed, thresh_type = self.thresh_type)
+        self.PCNLayer = pcn.pcn(self.outputDim, seed = self.seed, iter = self.iter, thresh_type = self.thresh_type)
 
         # Create vector of PCN neurons
         self.PCNLayer.initializeNeurons(self.nNeurons)
@@ -84,29 +83,26 @@ class rbf:
         # create intermediate dataset
         h = np.zeros((np.shape(data)[0], self.nNeurons))
 
-        # create predicted labels from data using every neuron
-        y = np.zeros((np.shape(data)[0], self.outputDim))
-        print(y)
-
         for m in range(self.nNeurons):
             h[:, m] = np.squeeze(self.matRBFNeurons[m].predictLabels(data))
 
-        # add bias node
-        bias = -1*np.ones((np.shape(data)[0], 1)) # bias weight
-        data = np.concatenate((bias, h), axis = 1)
+        if internal_bool == False:
+            # create predicted labels from data using every neuron
+            y = np.zeros((np.shape(data)[0], self.outputDim))
 
-        for n in range(self.PCNLayer.nNeurons):
-            yi = self.PCNLayer.matNeurons[n].predictLabels(data)
+            # add bias node
+            bias = -1*np.ones((np.shape(data)[0], 1)) # bias weight
+            data = np.concatenate((bias, h), axis = 1)
 
-            y[:, n] = np.squeeze(yi)
+            for n in range(self.PCNLayer.nNeurons):
+                yi = self.PCNLayer.matNeurons[n].predictLabels(data)
 
-        if internal_bool == True:
+                y[:, n] = np.squeeze(yi)
+
             return y
-        elif internal_bool == False and self.thresh_type == 'logistic':
-            y = np.where(y >= 0.5, 1, 0)
-            return y
+
         else:
-            return y
+            return h
 
     def trainWeights(self, data, labels):
         # get input data attributes
@@ -124,16 +120,23 @@ class rbf:
         self.initializeNeurons(data)
 
         # train weights
-        for m in range(self.iter):
-            vectReorder = np.arange(nData)
-            np.random.shuffle(vectReorder)
-            dataReordered = data[vectReorder, :]
-            labelsReordered = labels[vectReorder, :]
+        h = self.forwardPredict(data, internal_bool = True)
+        print(h)
+
+        self.PCNLayer.trainWeights(h, labels)
+
+        output = self.forwardPredict(data)
+
+        return output
 
 
-data = np.matrix([[0, 0], [0, 1], [1, 0], [1, 1]])
-labels = np.array([0, 1, 1, 1])
+data = np.matrix([[0, 0]])
+labels = np.array([1])
 
-test = rbf(4, 20, seed = 56)
-test.trainWeights(data, labels)
-print(test.forwardPredict(data))
+test = rbf(1, 0.9, seed = 56, nIter = 20)
+output = test.trainWeights(data, labels)
+print(test.matRBFNeurons[0].weights)
+print(test.matRBFNeurons[1].weights)
+print(test.matRBFNeurons[2].weights)
+print(test.matRBFNeurons[3].weights)
+print(output)
