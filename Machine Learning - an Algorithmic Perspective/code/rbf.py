@@ -121,22 +121,9 @@ class rbf:
 
         # train weights
         h = self.forwardPredict(data, internal_bool = True)
-        print(h)
 
         self.PCNLayer.trainWeights(h, labels)
 
         output = self.forwardPredict(data)
 
         return output
-
-
-data = np.matrix([[0, 0]])
-labels = np.array([1])
-
-test = rbf(1, 0.9, seed = 56, nIter = 20)
-output = test.trainWeights(data, labels)
-print(test.matRBFNeurons[0].weights)
-print(test.matRBFNeurons[1].weights)
-print(test.matRBFNeurons[2].weights)
-print(test.matRBFNeurons[3].weights)
-print(output)
