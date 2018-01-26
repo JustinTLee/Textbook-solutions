@@ -17,6 +17,7 @@ import math
 #                 - shuffle the inputs at every single step during training
 #                 - add momentum to update
 #                 - get rid of extraneous if/then statements in __init__ methods
+# 2018-01-26 - JL - add linear thresholding to neuron class
 
 class neuron:
 # neuron can: - perform dot product on weights and inputs
@@ -61,6 +62,10 @@ class neuron:
         # soft-max threshold
         elif self.thresh_type == 'soft-max':
             yi = math.exp(hij)/np.sum(math.exp(hij))
+
+        # linear
+        elif self.thresh_type == 'linear':
+            yi = hij
 
         # if any-non empty string other than the possible options, return zero array
         else:
