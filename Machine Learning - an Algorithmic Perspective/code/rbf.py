@@ -6,6 +6,7 @@ import math
 # History:
 # 2018-01-24 - JL - started RBF class definition
 # 2018-01-25 - JL - started RBF neuron class definition
+# 2018-01-26 - JL - edited initializeNeuron method, deleted test code at bottom
 
 class rbfneuron(pcn.neuron):
 
