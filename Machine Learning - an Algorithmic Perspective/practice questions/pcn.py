@@ -18,6 +18,8 @@ import math
 #                 - add momentum to update
 #                 - get rid of extraneous if/then statements in __init__ methods
 # 2018-01-26 - JL - add linear thresholding to neuron class
+#                 - delete soft-max threshold from input and add it to PCN and MLP class
+#                 - add new cases for soft-max
 
 class neuron:
 # neuron can: - perform dot product on weights and inputs
@@ -57,15 +59,11 @@ class neuron:
 
         # logistic threshold with boundary at 0.5
         elif self.thresh_type == 'logistic':
-            yi = 1/(1 + np.exp(-hij))
-
-        # soft-max threshold
-        elif self.thresh_type == 'soft-max':
-            yi = math.exp(hij)/np.sum(math.exp(hij))
+            yi = np.round(1/(1 + np.exp(-hij)), 2)
 
         # linear
         elif self.thresh_type == 'linear':
-            yi = hij
+            yi = np.round(hij, 2)
 
         # if any-non empty string other than the possible options, return zero array
         else:
@@ -135,7 +133,10 @@ class pcn:
 
     def initializeNeurons(self, nFeatVar):
         # create vector of neurons
-        self.matNeurons = [neuron(nFeatVar + 1, seed = self.seed + k, thresh_type = self.thresh_type) for k in range(self.nNeurons)]
+        if self.thresh_type == "soft-max":
+            self.matNeurons = [neuron(nFeatVar + 1, seed = self.seed + k, thresh_type = "linear") for k in range(self.nNeurons)]
+        else:
+            self.matNeurons = [neuron(nFeatVar + 1, seed = self.seed + k, thresh_type = self.thresh_type) for k in range(self.nNeurons)]
 
     def trainWeights(self, data, labels):
         # get input data attributes
@@ -169,13 +170,18 @@ class pcn:
             dataReordered = data[vectReorder, :]
             labelsReordered = labels[vectReorder, :]
 
+            # split up training into soft-max and non-soft-max:
             for n in range(self.nNeurons):
                 # loop through every neuron
                 # create label predictions
                 yi = self.matNeurons[n].predictLabels(dataReordered)
 
                 # update the weights
-                self.matNeurons[n].weights -= np.squeeze(self.eta)*dataReordered.T*(yi - labelsReordered[:, n])
+                error = dataReordered.T*(yi - labelsReordered[:, n])
+
+                self.matNeurons[n].weights -= np.squeeze(self.eta)*error
+
+                yi = np.zeros((nData, self.nNeurons))
 
         y = self.forwardPredict(data)
 
@@ -210,7 +216,8 @@ class mlp:
         # initialize threshold
         self.thresh_type = thresh_type
 
-        self.matPCN = [pcn(matLayers[k], seed = self.seed + k, iter = self.iter, thresh_type = self.thresh_type) for k in range(self.nLayers)]
+        self.matPCN = [pcn(matLayers[k], seed = self.seed + k, iter = self.iter, thresh_type = "logistic") for k in range(self.nLayers)]
+        self.matPCN[self.nLayers - 1].thresh_type = self.thresh_type
 
     def forwardPredict(self, data, internal_bool = False):
         data_int = data
@@ -279,6 +286,12 @@ class mlp:
             # move forward through the algorithm using the previous iteration's weights
             y = self.forwardPredict(dataReordered, internal_bool = True)
 
+            # if soft-max then output for each neuron is the ratio of that the exp of that neuron to all neurons
+            if self.thresh_type == "soft-max":
+                expOutput = np.exp(y[self.nLayers]).T
+                expOutputSum = np.matrix(np.sum(np.exp(y[self.nLayers]), axis = 1))
+                y[self.nLayers] = np.divide(expOutput, expOutputSum).T
+
             # loop through every layer
             for n in range(self.nLayers, 0, -1):
 
@@ -289,7 +302,21 @@ class mlp:
                     if n == self.nLayers:
 
                         outputNO = np.matrix(y[n][:, o]).T
-                        self.matPCN[n - 1].matNeurons[o].error = ((outputNO - labelsReordered[:, o])*outputNO.T*(1 - outputNO)).T
+
+                        if self.thresh_type == "step":
+                            self.matPCN[n - 1].matNeurons[o].error = np.multiply(outputNO, (outputNO - labelsReordered[:, o])).T
+
+                        elif self.thresh_type == "linear":
+                            self.matPCN[n - 1].matNeurons[o].error = np.multiply(outputNO, (outputNO - labelsReordered[:, o])).T
+
+                        elif self.thresh_type == "logistic":
+                            self.matPCN[n - 1].matNeurons[o].error = ((outputNO - labelsReordered[:, o])*outputNO.T*(1 - outputNO)).T
+
+                        elif self.thresh_type == "soft-max":
+                            self.matPCN[n - 1].matNeurons[o].error = ((outputNO.T - labelsReordered[:, o])*outputNO*(1 - outputNO.T)).T
+
+                        else:
+                            self.matPCN[n - 1].matNeurons[o].error = ((outputNO - labelsReordered[:, o])*outputNO.T*(1 - outputNO)).T                            
 
                     # compare the output of the current layer with the weighted sum of the error of the next layer
                     else:
@@ -306,21 +333,21 @@ class mlp:
 
                         self.matPCN[n - 1].matNeurons[o].error = (layerNOOutput*(1 - layerNOOutput).T*nextLayerError).T
 
-                # get the output of the previous layer
-                previousLayerOutput = np.matrix(y[n - 1])
+                    # get the output of the previous layer
+                    previousLayerOutput = np.matrix(y[n - 1])
 
-                # add bias node
-                if ~np.all(previousLayerOutput[:, 0] == -1):
-                    onesVect = -1*np.ones((np.shape(previousLayerOutput)[0], 1))
-                    previousLayerOutput = np.concatenate((onesVect, previousLayerOutput), axis = 1)
+                    # add bias node
+                    if ~np.all(previousLayerOutput[:, 0] == -1):
+                        onesVect = -1*np.ones((np.shape(previousLayerOutput)[0], 1))
+                        previousLayerOutput = np.concatenate((onesVect, previousLayerOutput), axis = 1)
 
-                # recalculate weights using the error of the current layer, output of the previous layer, and eta
-                if m == 0:
-                    self.matPCN[n - 1].matNeurons[o].updates = math.exp(-m/self.iter)*float(self.matPCN[n - 1].eta)*(self.matPCN[n - 1].matNeurons[o].error*previousLayerOutput).T
-                else:
-                    self.matPCN[n - 1].matNeurons[o].updates = math.exp(-m/self.iter)*float(self.matPCN[n - 1].eta)*(self.matPCN[n - 1].matNeurons[o].error*previousLayerOutput).T + self.matPCN[n - 1].matNeurons[o].momentum*self.matPCN[n - 1].matNeurons[o].updates
-                
-                self.matPCN[n - 1].matNeurons[o].weights -= self.matPCN[n - 1].matNeurons[o].updates
+                    # recalculate weights using the error of the current layer, output of the previous layer, and eta
+                    if m == 0:
+                        self.matPCN[n - 1].matNeurons[o].updates = math.exp(-m/self.iter)*float(self.matPCN[n - 1].eta)*(self.matPCN[n - 1].matNeurons[o].error*previousLayerOutput).T
+                    else:
+                        self.matPCN[n - 1].matNeurons[o].updates = math.exp(-m/self.iter)*float(self.matPCN[n - 1].eta)*(self.matPCN[n - 1].matNeurons[o].error*previousLayerOutput).T + self.matPCN[n - 1].matNeurons[o].momentum*self.matPCN[n - 1].matNeurons[o].updates
+                    
+                    self.matPCN[n - 1].matNeurons[o].weights -= self.matPCN[n - 1].matNeurons[o].updates
 
         # predict the final outcome
         y = self.forwardPredict(data)
