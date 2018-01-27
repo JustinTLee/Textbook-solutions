@@ -59,11 +59,11 @@ class neuron:
 
         # logistic threshold with boundary at 0.5
         elif self.thresh_type == 'logistic':
-            yi = 1/(1 + np.exp(-hij))
+            yi = np.round(1/(1 + np.exp(-hij)), 2)
 
         # linear
         elif self.thresh_type == 'linear':
-            yi = hij
+            yi = np.round(hij, 2)
 
         # if any-non empty string other than the possible options, return zero array
         else:
