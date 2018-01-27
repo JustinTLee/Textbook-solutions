@@ -20,6 +20,7 @@ import math
 # 2018-01-26 - JL - add linear thresholding to neuron class
 #                 - delete soft-max threshold from input and add it to PCN and MLP class
 #                 - add new cases for soft-max
+# 2018-01-27 - JL - added soft-max output to forwardPredict MLP method
 
 class neuron:
 # neuron can: - perform dot product on weights and inputs
@@ -234,6 +235,10 @@ class mlp:
             if self.thresh_type == 'logistic':
                 output = np.where(output[self.nLayers] >= 0.5, 1, 0)
                 return output
+            elif self.thresh_type == 'soft-max':
+                expOutput = np.exp(y[self.nLayers]).T
+                expOutputSum = np.matrix(np.sum(np.exp(y[self.nLayers]), axis = 1))
+                y = np.divide(expOutput, expOutputSum).T
             else:
                 return output[self.nLayers]
 
