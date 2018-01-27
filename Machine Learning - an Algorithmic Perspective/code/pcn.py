@@ -201,7 +201,7 @@ class mlp:
 #                             - run forward algorithm to calculate predicted labels
 #                             - calculate weights for each neuron in MLP
 
-    def __init__(self, matLayers, eta = None eed = None, iter = None, thresh_type = 'logistic'):
+    def __init__(self, matLayers, eta = None, seed = None, iter = None, thresh_type = 'logistic'):
         self.nLayers = np.shape(matLayers)[0]
 
         # set seed to be the date class was instantiated if no seed provided
