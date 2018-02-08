@@ -20,6 +20,8 @@ import math
 # 2018-01-26 - JL - add linear thresholding to neuron class
 #                 - delete soft-max threshold from input and add it to PCN and MLP class
 #                 - add new cases for soft-max
+# 2018-01-27 - JL - added soft-max output to forwardPredict MLP method
+#                 - added ability to set eta to PCN and MLP classes
 
 class neuron:
 # neuron can: - perform dot product on weights and inputs
@@ -85,7 +87,7 @@ class pcn:
 #                 - update neuron weights
 #                 - run forward algorithm to calculate predicted labels
 
-    def __init__(self, nNeurons, seed = None, iter = 20, thresh_type = 'step'):
+    def __init__(self, nNeurons, eta = None, seed = None, iter = 20, thresh_type = 'step'):
         # Instatiate class with number of weights, seed, and eta
         self.nNeurons = nNeurons
 
@@ -107,7 +109,10 @@ class pcn:
         self.thresh_type = thresh_type
 
         # generate eta as random number between 0.1 to 0.4, as stated in p. 46
-        self.eta = np.random.uniform(0.1, 0.4, 1)
+        if eta == None:
+            self.eta = np.random.uniform(0.1, 0.4, 1)
+        else:
+            self.eta = eta
 
     def forwardPredict(self, data, internal_bool = False):
         # create predicted labels from data using every neuron
@@ -196,7 +201,7 @@ class mlp:
 #                             - run forward algorithm to calculate predicted labels
 #                             - calculate weights for each neuron in MLP
 
-    def __init__(self, matLayers, seed = None, iter = None, thresh_type = 'logistic'):
+    def __init__(self, matLayers, eta = None, seed = None, iter = None, thresh_type = 'logistic'):
         self.nLayers = np.shape(matLayers)[0]
 
         # set seed to be the date class was instantiated if no seed provided
@@ -216,7 +221,13 @@ class mlp:
         # initialize threshold
         self.thresh_type = thresh_type
 
-        self.matPCN = [pcn(matLayers[k], seed = self.seed + k, iter = self.iter, thresh_type = "logistic") for k in range(self.nLayers)]
+        # generate eta as random number between 0.1 to 0.4, as stated in p. 46
+        if eta == None:
+            self.eta = np.random.uniform(0.1, 0.4, 1)
+        else:
+            self.eta = eta
+
+        self.matPCN = [pcn(matLayers[k], eta = self.eta, seed = self.seed + k, iter = self.iter, thresh_type = "logistic") for k in range(self.nLayers)]
         self.matPCN[self.nLayers - 1].thresh_type = self.thresh_type
 
     def forwardPredict(self, data, internal_bool = False):
@@ -234,6 +245,10 @@ class mlp:
             if self.thresh_type == 'logistic':
                 output = np.where(output[self.nLayers] >= 0.5, 1, 0)
                 return output
+            elif self.thresh_type == 'soft-max':
+                expOutput = np.exp(y[self.nLayers]).T
+                expOutputSum = np.matrix(np.sum(np.exp(y[self.nLayers]), axis = 1))
+                y = np.divide(expOutput, expOutputSum).T
             else:
                 return output[self.nLayers]
 
