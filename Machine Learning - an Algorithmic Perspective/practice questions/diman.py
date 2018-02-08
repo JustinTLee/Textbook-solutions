@@ -11,6 +11,8 @@ from scipy import linalg as la
 # 2018-01-20 - JL - frustrated with how Marsland implemented the code differently
 #                   from book's outline, so switched to Bishop's implementation,
 #                   created LDA class
+# 2018-02-07 - JL - changed module name to diman (dimensional analysis) to add other
+#                   types of component analysis to the same module
 
 def meandev(data):
     # Create mean-deviation form of dataset
@@ -65,7 +67,7 @@ class lda:
         # calculate the covariance matrices
         matSW, matSB = calculateCovMat(matFeat, vectLabels)
 
-        # get the eigenvectors
+        # get the eigenvectors - eigenvectors already normalized
         vectEigVal, matEigVect = la.eig(np.dot(la.inv(matSW), matSB))
 
         # sort eigenvectors by highest eigenvalue
