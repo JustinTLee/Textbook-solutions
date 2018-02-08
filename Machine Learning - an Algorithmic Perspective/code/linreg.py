@@ -29,7 +29,7 @@ class linreg:
 			data = np.concatenate((np.ones((nData, 1)), data), axis = 1)
 
 		# calculated predicted y's
-		y_hat = data*self.weights
+		y_hat = np.dot(data, self.weights)
 		return y_hat
 
 	def calcBeta(self, data, y):
@@ -49,7 +49,7 @@ class linreg:
 			data = np.concatenate((np.ones((nData, 1)), data), axis = 1)
 
 		if self.method == "normal":
-			self.weights = np.linalg.pinv(data.T*data)*data.T*y
+			self.weights = np.dot(np.dot(np.linalg.pinv(np.dot(data.T, data)), data.T), y)
 		else:
 			self.weights = np.empty((nFeatVars + 1, 1))
 
