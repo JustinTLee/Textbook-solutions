@@ -2,7 +2,7 @@
 # Accompanies the book:
 #   Kruschke, J. K. (2014). Doing Bayesian Data Analysis: 
 #   A Tutorial with R, JAGS, and Stan. 2nd Edition. Academic Press / Elsevier.
-source("DBDA2E-utilities.R")
+#source("DBDA2E-utilities.R")
 #===============================================================================
 
 genMCMC = function( data , numSavedSteps=50000 , saveName=NULL ) { 
@@ -135,7 +135,7 @@ plotMCMC = function( codaSamples , data , compVal=0.5 , rope=NULL ,
   mcmcMat = as.matrix(codaSamples,chains=TRUE)
   chainLength = NROW( mcmcMat )
   Ntheta = length(grep("theta",colnames(mcmcMat)))
-  openGraph(width=2.5*Ntheta,height=2.0*Ntheta)
+  #openGraph(width=2.5*Ntheta,height=2.0*Ntheta)
   par( mfrow=c(Ntheta,Ntheta) )
   for ( t1Idx in 1:(Ntheta) ) {
     for ( t2Idx in (1):Ntheta ) {
@@ -170,9 +170,9 @@ plotMCMC = function( codaSamples , data , compVal=0.5 , rope=NULL ,
     }
   }
   #-----------------------------------------------------------------------------  
-  if ( !is.null(saveName) ) {
-    saveGraph( file=paste(saveName,"Post",sep=""), type=saveType)
-  }
+  # if ( !is.null(saveName) ) {
+  #   saveGraph( file=paste(saveName,"Post",sep=""), type=saveType)
+  # }
 }
 
 #===============================================================================

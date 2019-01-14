@@ -1,0 +1,1 @@
+Enter the program in the file prog2.<some-suffix> and compile it into an executable file named prog2.
